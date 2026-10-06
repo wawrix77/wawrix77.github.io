@@ -139,52 +139,23 @@
 
     <script>
         const FACEIT_NICKNAME = "wawrix22"; 
-        const API_KEY = "854b1df6-2555-41a0-b2e6-4139fdcf3713"; 
-        
-        // Wykorzystujemy publiczny proxy do ominięcia zabezpieczenia CORS w przeglądarce
-        const PROXY_URL = "https://corsproxy.io?";
 
         async function fetchFaceitStats() {
-            const headers = { 'Authorization': `Bearer ${API_KEY}` };
             try {
-                // 1. Pobieranie danych podstawowych profilu
-                const playerUrl = `${PROXY_URL}${encodeURIComponent('https://open.faceit.com/data/v4/players?nickname=' + FACEIT_NICKNAME)}`;
-                const playerRes = await fetch(playerUrl, { headers });
-                if (!playerRes.ok) throw new Error('Brak gracza');
-                const playerData = await playerRes.json();
-                
-                const playerId = playerData.player_id;
-                document.getElementById('player-name').innerText = playerData.nickname;
-                document.getElementById('player-elo').innerText = `${playerData.games.cs2.faceit_elo} ELO`;
-                document.getElementById('player-level').innerText = `LVL ${playerData.games.cs2.skill_level}`;
+                // Wykorzystujemy alternatywne, stabilne i publiczne źródło danych bez blokady CORS
+                const response = await fetch(`https://v06.pro{FACEIT_NICKNAME}`);
+                if (!response.ok) throw new Error('Błąd pobierania');
+                const data = await response.json();
 
-                // 2. Pobieranie historii meczów CS2
-                const historyUrl = `${PROXY_URL}${encodeURIComponent(`https://open.faceit.com/data/v4/players/\${playerId}/history?game=cs2&limit=20`)}`;
-                const historyRes = await fetch(historyUrl, { headers });
-                if (!historyRes.ok) throw new Error('Brak historii');
-                const historyData = await historyRes.json();
+                // Przypisanie nicku, elo oraz poziomu
+                document.getElementById('player-name').innerText = data.nickname || FACEIT_NICKNAME;
+                document.getElementById('player-elo').innerText = `${data.elo} ELO`;
+                document.getElementById('player-level').innerText = `LVL ${data.level}`;
 
-                let wins = 0;
-                let losses = 0;
-                let eloChange = 0;
-                const today = new Date().toDateString();
-
-                if (historyData && historyData.items) {
-                    for (const match of historyData.items) {
-                        const matchDate = new Date(match.finished_at * 1000).toDateString();
-                        
-                        if (matchDate === today) {
-                            const myFaction = match.teams.faction1.players.some(p => p.nickname === playerData.nickname) ? 'faction1' : 'faction2';
-                            if (match.results && match.results.winner === myFaction) {
-                                wins++;
-                                eloChange += 25;
-                            } else {
-                                losses++;
-                                eloChange -= 25;
-                            }
-                        }
-                    }
-                }
+                // Wyciąganie statystyk z dzisiejszego dnia (W/L i ELO change)
+                let wins = data.today?.wins || 0;
+                let losses = data.today?.losses || 0;
+                let eloChange = data.today?.elo_diff || 0;
 
                 document.getElementById('daily-wl').innerText = `${wins}W - ${losses}L`;
                 
@@ -201,13 +172,14 @@
                 }
 
             } catch (error) {
-                console.error("Błąd ładowania widgetu:", error);
-                document.getElementById('player-name').innerText = "Błąd API";
+                console.error("Błąd widgetu:", error);
+                document.getElementById('player-name').innerText = "Błąd połączenia";
             }
         }
 
+        // Pierwsze uruchomienie i odświeżanie co 60 sekund
         fetchFaceitStats();
-        setInterval(fetchFaceitStats, 120000);
+        setInterval(fetchFaceitStats, 60000);
     </script>
 </body>
 </html>
