@@ -117,6 +117,7 @@
 <body>
 
     <div class="widget-container">
+        <!-- Lewa sekcja z profilem -->
         <div class="player-info">
             <div class="row-top">
                 <div class="nickname" id="player-name">Ładowanie...</div>
@@ -125,6 +126,7 @@
             <div class="elo-display" id="player-elo">---- ELO</div>
         </div>
 
+        <!-- Prawa sekcja ze statystykami -->
         <div class="stats-side">
             <div class="stat-box">
                 <div class="stat-label">Dzisiaj W/L</div>
@@ -139,23 +141,59 @@
 
     <script>
         const FACEIT_NICKNAME = "wawrix22"; 
+        const API_KEY = "854b1df6-2555-41a0-b2e6-4139fdcf3713"; 
 
         async function fetchFaceitStats() {
+            // Wykorzystujemy alternatywną bramkę proxy allorigins, która nie modyfikuje nagłówków i bezbłędnie przesyła autoryzację API do Faceit
             try {
-                // Wykorzystujemy alternatywne, stabilne i publiczne źródło danych bez blokady CORS
-                const response = await fetch(`https://v06.pro{FACEIT_NICKNAME}`);
-                if (!response.ok) throw new Error('Błąd pobierania');
-                const data = await response.json();
+                const playerUrl = `https://allorigins.win{encodeURIComponent('https://faceit.com' + FACEIT_NICKNAME)}`;
+                
+                const playerRes = await fetch(playerUrl, {
+                    headers: { 'Authorization': `Bearer ${API_KEY}` }
+                });
+                
+                if (!playerRes.ok) throw new Error('Błąd profilu');
+                const rawPlayerData = await playerRes.json();
+                const playerData = JSON.parse(rawPlayerData.contents);
+                
+                if (!playerData.player_id) throw new Error('Brak gracza');
 
-                // Przypisanie nicku, elo oraz poziomu
-                document.getElementById('player-name').innerText = data.nickname || FACEIT_NICKNAME;
-                document.getElementById('player-elo').innerText = `${data.elo} ELO`;
-                document.getElementById('player-level').innerText = `LVL ${data.level}`;
+                const playerId = playerData.player_id;
+                document.getElementById('player-name').innerText = playerData.nickname;
+                document.getElementById('player-elo').innerText = `${playerData.games.cs2.faceit_elo} ELO`;
+                document.getElementById('player-level').innerText = `LVL ${playerData.games.cs2.skill_level}`;
 
-                // Wyciąganie statystyk z dzisiejszego dnia (W/L i ELO change)
-                let wins = data.today?.wins || 0;
-                let losses = data.today?.losses || 0;
-                let eloChange = data.today?.elo_diff || 0;
+                // Pobieranie historii meczów CS2
+                const historyUrl = `https://allorigins.win{encodeURIComponent(`https://faceit.com\${playerId}/history?game=cs2&limit=20`)}`;
+                const historyRes = await fetch(historyUrl, {
+                    headers: { 'Authorization': `Bearer ${API_KEY}` }
+                });
+                
+                if (!historyRes.ok) throw new Error('Brak historii');
+                const rawHistoryData = await historyRes.json();
+                const historyData = JSON.parse(rawHistoryData.contents);
+
+                let wins = 0;
+                let losses = 0;
+                let eloChange = 0;
+                const today = new Date().toDateString();
+
+                if (historyData && historyData.items) {
+                    for (const match of historyData.items) {
+                        const matchDate = new Date(match.finished_at * 1000).toDateString();
+                        
+                        if (matchDate === today) {
+                            const myFaction = match.teams.faction1.players.some(p => p.nickname === playerData.nickname) ? 'faction1' : 'faction2';
+                            if (match.results && match.results.winner === myFaction) {
+                                wins++;
+                                eloChange += 25;
+                            } else {
+                                losses++;
+                                eloChange -= 25;
+                            }
+                        }
+                    }
+                }
 
                 document.getElementById('daily-wl').innerText = `${wins}W - ${losses}L`;
                 
@@ -172,14 +210,13 @@
                 }
 
             } catch (error) {
-                console.error("Błąd widgetu:", error);
-                document.getElementById('player-name').innerText = "Błąd połączenia";
+                console.error("Błąd ładowania widgetu:", error);
+                document.getElementById('player-name').innerText = "Błąd profilu";
             }
         }
 
-        // Pierwsze uruchomienie i odświeżanie co 60 sekund
         fetchFaceitStats();
-        setInterval(fetchFaceitStats, 60000);
+        setInterval(fetchFaceitStats, 120000); // Odświeżanie co 2 minuty
     </script>
 </body>
 </html>
