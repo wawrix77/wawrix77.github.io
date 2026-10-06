@@ -117,7 +117,6 @@
 <body>
 
     <div class="widget-container">
-        <!-- Lewa sekcja z profilem -->
         <div class="player-info">
             <div class="row-top">
                 <div class="nickname" id="player-name">Ładowanie...</div>
@@ -126,7 +125,6 @@
             <div class="elo-display" id="player-elo">---- ELO</div>
         </div>
 
-        <!-- Prawa sekcja ze statystykami -->
         <div class="stats-side">
             <div class="stat-box">
                 <div class="stat-label">Dzisiaj W/L</div>
@@ -140,15 +138,18 @@
     </div>
 
     <script>
-        // Konfiguracja Twoich danych pobrana z paneli
         const FACEIT_NICKNAME = "wawrix22"; 
         const API_KEY = "854b1df6-2555-41a0-b2e6-4139fdcf3713"; 
+        
+        // Wykorzystujemy publiczny proxy do ominięcia zabezpieczenia CORS w przeglądarce
+        const PROXY_URL = "https://corsproxy.io?";
 
         async function fetchFaceitStats() {
             const headers = { 'Authorization': `Bearer ${API_KEY}` };
             try {
-                // 1. Pobieranie danych podstawowych z oficjalnego serwera Faceit
-                const playerRes = await fetch(`https://faceit.com{FACEIT_NICKNAME}`, { headers });
+                // 1. Pobieranie danych podstawowych profilu
+                const playerUrl = `${PROXY_URL}${encodeURIComponent('https://open.faceit.com/data/v4/players?nickname=' + FACEIT_NICKNAME)}`;
+                const playerRes = await fetch(playerUrl, { headers });
                 if (!playerRes.ok) throw new Error('Brak gracza');
                 const playerData = await playerRes.json();
                 
@@ -157,8 +158,9 @@
                 document.getElementById('player-elo').innerText = `${playerData.games.cs2.faceit_elo} ELO`;
                 document.getElementById('player-level').innerText = `LVL ${playerData.games.cs2.skill_level}`;
 
-                // 2. Pobieranie historii meczów pod wyliczenie dzisiejszego bilansu
-                const historyRes = await fetch(`https://faceit.com{playerId}/history?game=cs2&limit=20`, { headers });
+                // 2. Pobieranie historii meczów CS2
+                const historyUrl = `${PROXY_URL}${encodeURIComponent(`https://open.faceit.com/data/v4/players/\${playerId}/history?game=cs2&limit=20`)}`;
+                const historyRes = await fetch(historyUrl, { headers });
                 if (!historyRes.ok) throw new Error('Brak historii');
                 const historyData = await historyRes.json();
 
@@ -205,7 +207,7 @@
         }
 
         fetchFaceitStats();
-        setInterval(fetchFaceitStats, 120000); // Automatyczne sprawdzanie zmian co 2 minuty
+        setInterval(fetchFaceitStats, 120000);
     </script>
 </body>
 </html>
