@@ -144,8 +144,8 @@
         const API_KEY = "854b1df6-2555-41a0-b2e6-4139fdcf3713"; 
 
         async function fetchFaceitStats() {
-            // Wykorzystujemy alternatywną bramkę proxy allorigins, która nie modyfikuje nagłówków i bezbłędnie przesyła autoryzację API do Faceit
             try {
+                // 1. Pobieranie profilu gracza
                 const playerUrl = `https://allorigins.win{encodeURIComponent('https://faceit.com' + FACEIT_NICKNAME)}`;
                 
                 const playerRes = await fetch(playerUrl, {
@@ -163,8 +163,8 @@
                 document.getElementById('player-elo').innerText = `${playerData.games.cs2.faceit_elo} ELO`;
                 document.getElementById('player-level').innerText = `LVL ${playerData.games.cs2.skill_level}`;
 
-                // Pobieranie historii meczów CS2
-                const historyUrl = `https://allorigins.win{encodeURIComponent(`https://faceit.com\${playerId}/history?game=cs2&limit=20`)}`;
+                // 2. Pobieranie historii meczów (Naprawiona linijka kodu)
+                const historyUrl = `https://allorigins.win{encodeURIComponent('https://faceit.com' + playerId + '/history?game=cs2&limit=20')}`;
                 const historyRes = await fetch(historyUrl, {
                     headers: { 'Authorization': `Bearer ${API_KEY}` }
                 });
@@ -216,7 +216,7 @@
         }
 
         fetchFaceitStats();
-        setInterval(fetchFaceitStats, 120000); // Odświeżanie co 2 minuty
+        setInterval(fetchFaceitStats, 120000);
     </script>
 </body>
 </html>
